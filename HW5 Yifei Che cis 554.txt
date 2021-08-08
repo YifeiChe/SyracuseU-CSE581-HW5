@@ -1,0 +1,494 @@
+//Yifei Che 636109055 yche03
+//HW5 Due: April 23 (Friday) at 11:59PM
+#include <iostream>
+#include <memory>
+
+using namespace std;
+
+class node {
+public:
+	shared_ptr<node> east;
+	weak_ptr<node> south;
+	int value;
+	node() {}
+	node(int i) { value = i; }
+};
+
+class ring {
+public:
+	//Implement all functions described below
+
+
+	shared_ptr<node> head;
+	int num_rows;
+	int num_cols;
+	ring() {}
+
+	//Implement all functions described below
+	ring(int i, int j, int k);//constructor
+	//i rows and j cols, values randomly distributed in 0 ... k-1
+	~ring();//destructor; do as little work as possible
+	ring(const ring& r); //copy constructor
+	ring(ring&& r); //move constructor
+	void operator=(ring&& r);//move assignment
+	void operator=(const ring& r); //copy assignment
+	ring(const initializer_list<initializer_list<int>>& V);//nested initializer_list
+	void DelCol(int i);//delete col i of *this; row numbers start from 0
+	void DelRow(int i);//delete row i of *this; col numbers start from 0
+	ring Threetimes();
+	//return a ring with the same dimenstion as *this, and the value of every node is three times of that of *this.
+
+	friend ostream& operator<<(ostream& str, const ring& R);
+
+};
+
+
+ring::ring(int i, int j, int k) {//constructor  //i rows and j cols, values randomly distributed in 0 ... k-1
+
+	if (i <= 0 || j <= 0) {
+		num_rows = i;
+		num_cols = j;
+		return;
+	}
+
+	num_rows = i;
+	num_cols = j;
+
+	//east
+	shared_ptr<node> firstRowFirst = make_shared<node>(rand() % k); //create the firstRowFirst node.
+	shared_ptr<node> previousTracker; //create the previousTracker node.
+	shared_ptr<node> normalNode; //create the normal node.
+
+
+	head = firstRowFirst;
+	for (int a = 0; a < i; a++) { //repeat the times same as row quantity
+		for (int b = 0; b < j; b++) { //repeat the times same as column quantity
+			if ((b == 0) && (a == 0)) { //the every first element of the ring
+				previousTracker = firstRowFirst;
+				continue;
+			}
+			else if ((b == 0) && (a != 0)) {//the first element of the current row
+				normalNode = make_shared<node>(rand() % k); //create the normal node.
+				previousTracker->east = normalNode;
+				previousTracker = normalNode;
+			}
+			else {//when it's not the first element of the current row
+				normalNode = make_shared<node>(rand() % k); //create the normal node.
+				previousTracker->east = normalNode;
+				previousTracker = normalNode;
+			}
+		}
+	}
+	previousTracker->east = head;
+	firstRowFirst.reset();
+	previousTracker.reset();
+	normalNode.reset();
+	//the east pointer assignment is done.
+
+	//south
+	shared_ptr<node> current = head;
+	shared_ptr<node> weakFinder;
+
+	int count = i * j;
+	for (int a = 0; a < count; a++) {
+		if (a < ((i - 1) * j )) { //seperation number from last row
+			weakFinder = current;
+			for (int b = 0; b < j; b++) { //
+				weakFinder = weakFinder->east;
+			}
+			current->south = weakFinder;
+		}
+		else if (a == (count - 1)) { //last node
+			current->south = head;
+		}
+		else {//last row
+			weakFinder = current;
+			for (int b = 0; b < (j + 1); b++) { //
+				weakFinder = weakFinder->east;
+			}
+			current->south = weakFinder;
+		}
+		current = current->east;
+	}
+	current.reset();
+	weakFinder.reset();
+}
+
+ring::~ring() {//destructor; do as little work as possible
+	//(head->east).reset(); //reset the second node in sequence.
+	//cout << "before: " << head->value << endl;
+	head.reset();//reset head. 
+	//cout << "after: " << head->value << endl;
+	num_cols = 0;
+	num_rows = 0;
+	cout << "Destructor" << endl;
+}
+
+ring::ring(const ring& r){ //copy constructor
+	shared_ptr<node> p1{r.head}, p2, p4; //p4 is used to track the last node.
+	shared_ptr<node> p3{ p1 };// iteration stop mark
+	bool begin = true;
+
+	do{//create a empty ring with only shared_ptr (no value, no weak_ptr)
+		if (begin == true) {
+			p2 = make_shared<node>();
+			p4 = p2; //p4 is the last node.
+			begin = false;
+			p2->east = head;
+			head = p2;
+			p1 = p1->east;
+		}
+		p2 = make_shared<node>();
+		p2->east = head;
+		head = p2;
+		p1 = p1->east;
+	}while (p1!=p3);
+	p4->east = head; //connect the last node with the first node.
+
+	p1 = r.head;
+	p2 = head;
+
+	do {//assign value accordingly
+		p2->value = p1->value;
+		p1 = p1->east;
+		p2 = p2->east;
+	} while (p1!=p3);
+
+	
+	num_rows = r.num_rows;
+	num_cols = r.num_cols;
+
+	//south
+	shared_ptr<node> current = head;
+	shared_ptr<node> weakFinder;
+
+	int count = num_cols * num_rows;
+	for (int a = 0; a < count; a++) {
+		if (a < ((num_rows - 1) * num_cols - 1)) { //seperation number from last row
+			weakFinder = current;
+			for (int b = 0; b < num_cols; b++) { //
+				weakFinder = weakFinder->east;
+			}
+			current->south = weakFinder;
+		}
+		else if (a == (count - 1)) { //last node
+			current->south = head;
+		}
+		else {//last row
+			weakFinder = current;
+			for (int b = 0; b < (num_cols + 1); b++) { //
+				weakFinder = weakFinder->east;
+			}
+			current->south = weakFinder;
+		}
+		current = current->east;
+	}
+	current.reset();
+	weakFinder.reset();
+
+	cout << "Copy Constructor" << endl;
+}
+
+ring::ring(ring&& r){ //move constructor
+	head = r.head;
+	num_cols = r.num_cols;
+	num_rows = r.num_rows;
+	r.head.reset();
+	cout << "Move Constructor" << endl;
+}
+
+void ring::operator=(ring&& r){//move assignment
+	//(head->east).reset(); //reset the second node in sequence.
+	head.reset();//reset head.  //destructor portion
+
+	head = r.head;
+	num_cols = r.num_cols;
+	num_rows = r.num_rows;
+	r.head.reset();
+	cout << "Move Assignment" << endl;
+}
+
+void ring::operator=(const ring& r){//copy assignment
+	//(head->east).reset(); //reset the second node in sequence.
+	head.reset();//reset head.  //destructor portion
+
+	//copy constructor portion
+	shared_ptr<node> p1{ r.head }, p2, p4; //p4 is used to track the last node.
+	shared_ptr<node> p3{ p1 };// iteration stop mark
+	bool begin = true;
+
+	do {//create a empty ring with only shared_ptr (no value, no weak_ptr)
+		if (begin == true) {
+			p2 = make_shared<node>();
+			p4 = p2; //p4 is the last node.
+			begin = false;
+			p2->east = head;
+			head = p2;
+			p1 = p1->east;
+		}
+		p2 = make_shared<node>();
+		p2->east = head;
+		head = p2;
+		p1 = p1->east;
+	} while (p1 != p3);
+	p4->east = head; //connect the last node with the first node.
+
+	p1 = r.head;
+	p2 = head;
+
+	do {//assign value accordingly
+		p2->value = p1->value;
+		p1 = p1->east;
+		p2 = p2->east;
+	} while (p1 != p3);
+
+
+	num_rows = r.num_rows;
+	num_cols = r.num_cols;
+
+	//south
+	shared_ptr<node> current = head;
+	shared_ptr<node> weakFinder;
+
+	int count = num_cols * num_rows;
+	for (int a = 0; a < count; a++) {
+		if (a < ((num_rows - 1) * num_cols - 1)) { //seperation number from last row
+			weakFinder = current;
+			for (int b = 0; b < num_cols; b++) { //
+				weakFinder = weakFinder->east;
+			}
+			current->south = weakFinder;
+		}
+		else if (a == (count - 1)) { //last node
+			current->south = head;
+		}
+		else {//last row
+			weakFinder = current;
+			for (int b = 0; b < (num_cols + 1); b++) { //
+				weakFinder = weakFinder->east;
+			}
+			current->south = weakFinder;
+		}
+		current = current->east;
+	}
+	current.reset();
+	weakFinder.reset();
+
+
+	cout << "Copy Assignment" << endl;
+}
+
+ring::ring(const initializer_list<initializer_list<int>>& V) {//nested initializer_list
+	shared_ptr<node> normalNode; //create the normal node.
+	shared_ptr<node> previousTracker; //create the previousTracker node.
+	num_cols = 0;
+	num_rows = 0;
+	auto it1 = V.begin(); //outer list
+	while (it1 != V.end()) {
+		auto it2 = it1->begin(); //inner list
+		while (it2 != it1->end()) {
+			if (it2 == it1->begin() && it1 == V.begin()) { //the very first node
+				previousTracker = make_shared<node>(*it2);
+				head = previousTracker;//assign head
+			}
+			else {
+				normalNode = make_shared<node>(*it2); //create the normal node.
+				previousTracker->east = normalNode;
+				previousTracker = normalNode;
+			}
+			it2++;
+			num_cols++;
+
+		}
+		it1++;
+		num_rows++;//final value for num_rows
+	}
+	previousTracker->east = head;
+	previousTracker.reset();
+	normalNode.reset();
+	num_cols /= num_rows; //final value for num_cols
+	//the east pointer assignment is done.
+
+	//south
+	shared_ptr<node> current = head;
+	shared_ptr<node> weakFinder;
+
+	int count = num_cols * num_rows;
+	for (int a = 0; a < count; a++) {
+		if (a < ((num_rows - 1) * num_cols)) { //seperation number from last row
+			weakFinder = current;
+			for (int b = 0; b < num_cols; b++) { //
+				weakFinder = weakFinder->east;
+			}
+			current->south = weakFinder;
+		}
+		else if (a == (count - 1)) { //last node
+			current->south = head;
+		}
+		else {//last row
+			weakFinder = current;
+			for (int b = 0; b < (num_cols + 1); b++) { //
+				weakFinder = weakFinder->east;
+			}
+			current->south = weakFinder;
+		}
+		current = current->east;
+	}
+	current.reset();
+	weakFinder.reset();
+
+}
+
+void ring::DelCol(int i) {//delete col i of *this; row numbers start from 0
+	if (i > num_cols - 1) { return; }
+
+	shared_ptr<node> p;
+	shared_ptr<node> next;
+	int j = i;
+	if (i == 0) {
+		int j = num_cols;
+		p = head;
+		next = p->east;
+		head = head->east; //assign new head
+		int count = (this->num_cols) * (this->num_rows - 1);
+		int mark = 0;
+		for (int a = 0; a < count; a++) {
+			if (a == (mark * num_cols + (j - 1))) { //last node index
+				p->east = next->east;
+				next.reset();
+				mark++;
+				j--;
+			}
+			p = p->east;
+			next = p->east;
+		}
+	}
+	else {
+		int j = i;
+		p = head;
+		next = p->east;
+		int count = (this->num_cols) * (this->num_rows - 1);
+		int mark = 0;
+		for (int a = 0; a < count; a++) {
+			if (a == (mark * num_cols + (j - 1))) { //last node index
+				p->east = next->east;
+				next.reset();
+				mark++;
+				j--;
+			}
+			p = p->east;
+			next = p->east;
+		}
+
+	}
+	num_cols--;
+}
+
+void ring::DelRow(int i) {//delete row i of *this; col numbers start from 0
+	if (i > num_rows - 1) { return; }
+
+	shared_ptr<node> p;
+	shared_ptr<node> next;
+	if (i == 0) {//delete first row
+		p = head;
+		for (int a = 0; a < num_cols; a++) {
+			p = p->east;
+		}
+		head = p;
+	}
+
+	else {//delete row other than first one
+		p = head;
+		for (int a = 0; a < (i * num_cols - 1); a++) {
+			p = p->east;
+		}
+		next = p;
+		for (int a = 0; a < (num_cols + 1); a++) {
+			next = next->east;
+		}
+		p->east = next;
+		next.reset();
+		p.reset();
+	}
+	num_rows--;
+}
+
+ring ring::Threetimes(){//return a ring with the same dimenstion as *this, and the value of every node is three times of that of *this.
+	ring temp{*this}; //copy constructor
+	temp.num_cols = this->num_cols;
+	temp.num_rows = this->num_rows;
+
+	shared_ptr<node> p1{ temp.head };
+	shared_ptr<node> p3{ p1 };
+
+	do {
+		p1->value *= 3;
+		p1 = p1->east;
+	} while (p1 != p3);
+
+	cout << "ThreeTimes" <<endl;
+	return temp;  
+}
+
+ostream& operator<<(ostream& str, const ring& R) {
+	shared_ptr<node> temp = R.head;
+	for (int i = 0; i < R.num_rows; i++) {
+		for (int j = 0; j < R.num_cols; j++) {
+			str << temp->value << " ";
+			temp = temp->east;
+		}
+		str << endl;
+	}
+	return str;
+}
+
+
+int main() {
+
+	ring R1(4, 6, 20);
+	cout << R1 << endl;
+
+	shared_ptr<node> temp = R1.head;
+
+	/*int count = 0;
+	while (count != 2) {
+		if (temp->south.lock() == R1.head) { count++; }
+		cout << temp->value << " ";
+		temp = temp->south.lock();
+	}
+	cout << endl;*/
+	
+	R1.DelCol(3);
+	cout << R1 << endl;
+	R1.DelCol(4);
+	cout << R1 << endl;
+	R1.DelCol(0);
+	cout << R1 << endl;
+
+	ring R2(5, 7, 20);
+	cout << R2 << endl;
+	R2.DelRow(3);//3
+	cout << R2 << endl;
+	R2.DelRow(3);
+	cout << R2 << endl;
+	R2.DelRow(0);
+	cout << R2 << endl;
+
+	shared_ptr<ring> p1 = make_shared<ring>(3, 5, 10);
+	cout << *p1 << endl;
+	p1.reset();
+
+	ring R3 = { {10,20,30,40,50} , {100, 200, 300, 400, 500}, {1000, 2000, 3000, 4000, 5000} };//
+
+	cout << R3 << endl;
+ 	ring R4(R3);
+	cout << R4 << endl;
+	ring R5;
+	R5 = R3;
+	cout << R5 << endl;
+	ring R6;
+	R6 = R5.Threetimes();
+	cout << R6 << endl;
+	
+	return 0;
+}
